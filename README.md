@@ -19,7 +19,7 @@ Part of the **[Wick suite](https://github.com/Wicksmods/WickSuite)** — precisi
 | **Wick's Layers** | [repo](https://github.com/Wicksmods/WicksLayers) | [CurseForge](https://www.curseforge.com/wow/addons/wicks-layers) |
 | **Wick's Totems and Things** | [repo](https://github.com/Wicksmods/WicksTotemsAndThings) | [CurseForge](https://www.curseforge.com/wow/addons/wicks-totems-and-things) |
 | **Wick's Bags** | [repo](https://github.com/Wicksmods/WicksBags) | [CurseForge](https://www.curseforge.com/wow/addons/wicks-bags) |
-| **Wick's Travel Form** | [repo](https://github.com/Wicksmods/WicksTravelForm) | [CurseForge](https://www.curseforge.com/wow/addons/travel-form) |
+| **Wick's Travel Form** | [repo](https://github.com/Wicksmods/WicksTravelForm) | [CurseForge](https://www.curseforge.com/wow/addons/wicks-travel-form) |
 <!-- wick:suite-table:end -->
 
 ## What it does
@@ -37,7 +37,7 @@ A small contextual icon shows which form the next press will trigger and display
 
 ## Install
 
-- **CurseForge:** [curseforge.com/wow/addons/travel-form](https://www.curseforge.com/wow/addons/travel-form)
+- **CurseForge:** [curseforge.com/wow/addons/wicks-travel-form](https://www.curseforge.com/wow/addons/wicks-travel-form)
 - **Manual:** download the latest ZIP from [Releases](https://github.com/Wicksmods/WicksTravelForm/releases) and extract the `WicksTravelForm` folder into `World of Warcraft\_classic_\Interface\AddOns\`.
 
 ## Usage
