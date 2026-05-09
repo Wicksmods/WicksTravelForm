@@ -2,15 +2,22 @@
 
 # Wick's Travel Form
 
-> Travel Form for TBC Classic. Part of the Wick suite.
+> Smart shapeshift binding for druids. One key picks Flight, Travel, Aquatic, or Cat by context.
 
 Part of the **[Wick suite](https://github.com/Wicksmods/WickSuite)** — precision TBC Classic addons with a shared fel-green-on-deep-purple aesthetic.
 
-## Features
+## What it does
 
-- Feature one
-- Feature two
-- Feature three
+Binds one key to the right druid form for where you are right now:
+
+- **Swimming** → Aquatic Form
+- **Outdoors, in an Outland flyable zone, out of combat** → Flight Form (Swift Flight Form if you've trained it)
+- **Outdoors anywhere else, or in combat** → Travel Form
+- **Indoors** → Cat Form (no speed boost; just looks right)
+
+The macro stays correct in TBC Classic because the addon ignores Blizzard's `IsFlyableArea()` (which incorrectly reports Azeroth zones as flyable) and uses a hard-coded list of TBC's actual flyable zones. Swimming, outdoors, and combat checks are baked into the macro itself, so the bind always picks the right form at click time without polling.
+
+A small contextual icon shows which form the next press will trigger and displays your bound key.
 
 ## Install
 
@@ -19,15 +26,25 @@ Part of the **[Wick suite](https://github.com/Wicksmods/WickSuite)** — precisi
 
 ## Usage
 
-```
-/wstf
-```
+1. **Bind a key** in `Esc → Key Bindings → Wick's Travel Form → Smart travel form`.
+2. The icon shows up center-bottom of the screen by default.
+3. Press the bound key anywhere — the addon picks the right form.
 
-Opens the panel. Drag the header to move, drag the BOTTOMRIGHT fel-green bracket to resize.
+Slash commands (`/wstf` or `/wtravel`):
+
+| | |
+|---|---|
+| `/wstf unlock` | unlock the icon for dragging |
+| `/wstf lock` | lock it back |
+| `/wstf reset` | move the icon back to default position |
+| `/wstf debug` | print current zone, predicted form, and macro string |
+
+Right-click the icon to toggle the lock.
 
 ## Compatibility
 
 - **TBC Classic (Burning Crusade / Anniversary)** — Interface `20505`.
+- **enUS only** at v0.1 — flyable zone names and form names are hard-coded in English.
 
 ## Brand
 

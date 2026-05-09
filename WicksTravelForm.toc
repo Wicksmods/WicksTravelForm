@@ -1,9 +1,10 @@
 ## Interface: 20505
 ## Title: Wick's Travel Form
-## Notes: Travel Form for TBC Classic. Part of the Wick suite.
+## Notes: Smart shapeshift binding for druids. Picks Flight, Travel, Aquatic, or Cat by context.
 ## Author: Wick
 ## Version: 0.1.0
-## SavedVariables: WICKSTRAVELFORMDB
+## SavedVariables: WicksTravelFormDB
 
+Bindings.xml
 Core.lua
 UI.lua

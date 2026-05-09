@@ -4,8 +4,12 @@
 
 ### Initial release
 
-Scaffold generated from `wick scaffold`. Brand-consistent with the rest of the [Wick suite](https://github.com/Wicksmods/WickSuite).
+Smart shapeshift binding for druids. One key picks Flight, Travel, Aquatic, or Cat by context.
 
-- Flat dark-purple panel + fel-green L-bracket chrome
-- Resizable (BOTTOMRIGHT bracket doubles as resize grip)
-- Slash command: `/wstf`
+- Hard-coded TBC flyable-zone whitelist (works around `IsFlyableArea` reporting Azeroth as flyable)
+- Picks Swift Flight Form when trained, Flight Form otherwise
+- In-combat or in non-flyable zones, falls back to Travel Form outdoors
+- Indoors falls back to Cat Form (no speed; just for the aesthetic)
+- Underwater always switches to Aquatic Form
+- Contextual icon button (draggable) showing the next form and bound key
+- Slash commands: `/wstf` or `/wtravel` (`unlock | lock | reset | debug`)
