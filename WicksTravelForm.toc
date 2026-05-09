@@ -1,0 +1,9 @@
+## Interface: 20505
+## Title: Wick's Travel Form
+## Notes: Travel Form for TBC Classic. Part of the Wick suite.
+## Author: Wick
+## Version: 0.1.0
+## SavedVariables: WICKSTRAVELFORMDB
+
+Core.lua
+UI.lua
