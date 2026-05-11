@@ -1,5 +1,11 @@
 # Wick's Travel Form — Changelog
 
+## 0.2.2 — 2026-05-10
+
+### Fixed
+
+- Flight form now works in Shattrath City (flagged indoors by WoW but flyable — now uses a `[nocombat]` clause without the `outdoors` guard)
+
 ## 0.2.1 — 2026-05-10
 
 ### Fixed

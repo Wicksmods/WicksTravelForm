@@ -3,7 +3,7 @@
 
 local ADDON, ns = ...
 _G.WICKSTRAVELFORM = ns
-ns.version = "0.2.1"
+ns.version = "0.2.2"
 
 local DEFAULTS = {
     point = "CENTER", relativePoint = "CENTER", x = 0, y = -120,
@@ -52,9 +52,20 @@ local FLYABLE_ZONES = {
     ["Isle of Quel'Danas"]     = true,
 }
 
+-- Shattrath is flagged indoors by WoW but flying is allowed there.
+-- These zones need the flight clause without the [outdoors] conditional.
+local FLYABLE_INDOOR_ZONES = {
+    ["Shattrath City"] = true,
+}
+
 function ns.isFlyableZone()
     local zone = GetRealZoneText()
-    return zone and FLYABLE_ZONES[zone] == true
+    return zone and (FLYABLE_ZONES[zone] == true or FLYABLE_INDOOR_ZONES[zone] == true)
+end
+
+function ns.isFlyableIndoorZone()
+    local zone = GetRealZoneText()
+    return zone and FLYABLE_INDOOR_ZONES[zone] == true
 end
 
 -- =====================================================================
@@ -86,8 +97,11 @@ end
 -- =====================================================================
 function ns.predictForm()
     if IsSwimming() then return ns.FORMS.AQUATIC end
+    local fly = ns.bestFlightForm()
+    if fly and ns.isFlyableIndoorZone() and not InCombatLockdown() then
+        return fly
+    end
     if IsOutdoors() then
-        local fly = ns.bestFlightForm()
         if fly and ns.isFlyableZone() and not InCombatLockdown() then
             return fly
         end
@@ -136,8 +150,13 @@ function ns.buildMacro()
     end
     local clauses = { "[swimming] " .. ns.FORMS.AQUATIC }
     local fly = ns.bestFlightForm()
-    if fly and ns.isFlyableZone() then
-        table.insert(clauses, ("[nocombat,outdoors] %s"):format(fly))
+    if fly then
+        if ns.isFlyableIndoorZone() then
+            -- Shattrath and similar: flyable but IsOutdoors() returns false.
+            table.insert(clauses, ("[nocombat] %s"):format(fly))
+        elseif ns.isFlyableZone() then
+            table.insert(clauses, ("[nocombat,outdoors] %s"):format(fly))
+        end
     end
     table.insert(clauses, "[outdoors] " .. ns.FORMS.TRAVEL)
     table.insert(clauses, ns.FORMS.CAT)
