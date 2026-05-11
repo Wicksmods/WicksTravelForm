@@ -1,5 +1,12 @@
 # Wick's Travel Form — Changelog
 
+## 0.2.0 — 2026-05-10
+
+### Fixed
+
+- Flight form now activates correctly in Outlands when the macro was last built in Azeroth (e.g. logged in Azeroth, zoned in while in combat)
+- Pressing the button while airborne now cancels flight form instead of powershifting back into it
+
 ## 0.1.0 — 2026-05-09
 
 ### Initial release

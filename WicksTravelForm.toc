@@ -2,7 +2,7 @@
 ## Title: Wick's Travel Form
 ## Notes: Smart shapeshift binding for druids. Picks Flight, Travel, Aquatic, or Cat by context.
 ## Author: Wick
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariables: WicksTravelFormDB
 
 Bindings.xml

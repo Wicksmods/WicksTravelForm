@@ -3,7 +3,7 @@
 
 local ADDON, ns = ...
 _G.WICKSTRAVELFORM = ns
-ns.version = "0.1.0"
+ns.version = "0.2.0"
 
 local DEFAULTS = {
     point = "CENTER", relativePoint = "CENTER", x = 0, y = -120,
@@ -96,6 +96,15 @@ function ns.predictForm()
     return ns.FORMS.CAT
 end
 
+function ns.isFlying()
+    -- GetShapeshiftForm returns the index of the current form (1-based).
+    -- We match it against the flight form spell IDs to detect airborne state.
+    local formIndex = GetShapeshiftForm()
+    if formIndex == 0 then return false end
+    local _, _, _, spellId = GetShapeshiftFormInfo(formIndex)
+    return spellId == 33943 or spellId == 40120  -- Flight Form / Swift Flight Form
+end
+
 -- =====================================================================
 -- Build the macrotext. The macro itself runs the swim / outdoors /
 -- combat conditional checks at click time — those are cheap and always
@@ -103,9 +112,14 @@ end
 -- on zone + spellbook (rare events), so we don't need any polling.
 -- =====================================================================
 function ns.buildMacro()
+    -- While airborne, the button is cancel-only. Combining /cancelform with a
+    -- /cast on the same click powershifts back into flight immediately.
+    if ns.isFlying() then
+        return "/cancelform"
+    end
     local clauses = { "[swimming] !" .. ns.FORMS.AQUATIC }
     local fly = ns.bestFlightForm()
-    if fly and ns.isFlyableZone() then
+    if fly then
         table.insert(clauses, ("[nocombat,outdoors] !%s"):format(fly))
     end
     table.insert(clauses, "[outdoors] !" .. ns.FORMS.TRAVEL)
