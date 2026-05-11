@@ -3,7 +3,7 @@
 
 local ADDON, ns = ...
 _G.WICKSTRAVELFORM = ns
-ns.version = "0.2.0"
+ns.version = "0.2.1"
 
 local DEFAULTS = {
     point = "CENTER", relativePoint = "CENTER", x = 0, y = -120,

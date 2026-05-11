@@ -1,5 +1,12 @@
 # Wick's Travel Form — Changelog
 
+## 0.2.1 — 2026-05-10
+
+### Fixed
+
+- Travel Form now casts correctly in Azeroth when flight form is learned (flight clause was matching `[nocombat,outdoors]` and failing silently, blocking Travel Form)
+- Pressing the button while in Cat Form, Travel Form, or Aquatic Form now cancels the form instead of powershifting
+
 ## 0.2.0 — 2026-05-10
 
 ### Fixed
