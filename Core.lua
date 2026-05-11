@@ -96,13 +96,28 @@ function ns.predictForm()
     return ns.FORMS.CAT
 end
 
-function ns.isFlying()
-    -- GetShapeshiftForm returns the index of the current form (1-based).
-    -- We match it against the flight form spell IDs to detect airborne state.
+local MANAGED_SPELL_IDS = {
+    [1066]  = true,  -- Aquatic Form
+    [783]   = true,  -- Travel Form
+    [33943] = true,  -- Flight Form
+    [40120] = true,  -- Swift Flight Form
+    [768]   = true,  -- Cat Form
+}
+
+-- Returns true when the player is already in one of the forms this addon manages.
+-- In that case the button should /cancelform rather than cast (avoids powershifting).
+function ns.isInManagedForm()
     local formIndex = GetShapeshiftForm()
     if formIndex == 0 then return false end
     local _, _, _, spellId = GetShapeshiftFormInfo(formIndex)
-    return spellId == 33943 or spellId == 40120  -- Flight Form / Swift Flight Form
+    return MANAGED_SPELL_IDS[spellId] == true
+end
+
+function ns.isFlying()
+    local formIndex = GetShapeshiftForm()
+    if formIndex == 0 then return false end
+    local _, _, _, spellId = GetShapeshiftFormInfo(formIndex)
+    return spellId == 33943 or spellId == 40120
 end
 
 -- =====================================================================
@@ -112,18 +127,20 @@ end
 -- on zone + spellbook (rare events), so we don't need any polling.
 -- =====================================================================
 function ns.buildMacro()
-    -- While airborne, the button is cancel-only. Combining /cancelform with a
-    -- /cast on the same click powershifts back into flight immediately.
-    if ns.isFlying() then
+    -- When already in one of our forms, emit /cancelform only.
+    -- Combining /cancelform + /cast on the same click powershifts immediately.
+    -- UPDATE_SHAPESHIFT_FORM triggers a Refresh() so the macro swaps back
+    -- to the cast variant the moment the player leaves the form.
+    if ns.isInManagedForm() then
         return "/cancelform"
     end
-    local clauses = { "[swimming] !" .. ns.FORMS.AQUATIC }
+    local clauses = { "[swimming] " .. ns.FORMS.AQUATIC }
     local fly = ns.bestFlightForm()
-    if fly then
-        table.insert(clauses, ("[nocombat,outdoors] !%s"):format(fly))
+    if fly and ns.isFlyableZone() then
+        table.insert(clauses, ("[nocombat,outdoors] %s"):format(fly))
     end
-    table.insert(clauses, "[outdoors] !" .. ns.FORMS.TRAVEL)
-    table.insert(clauses, "!" .. ns.FORMS.CAT)
+    table.insert(clauses, "[outdoors] " .. ns.FORMS.TRAVEL)
+    table.insert(clauses, ns.FORMS.CAT)
     return "/cast " .. table.concat(clauses, "; ")
 end
 

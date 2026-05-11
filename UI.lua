@@ -120,7 +120,7 @@ end)
 btn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine("Wick's Travel Form", 0.31, 0.78, 0.47)
-    local action = ns.isFlying() and "Cancel flight form" or ("Will cast: " .. ns.predictForm())
+    local action = ns.isInManagedForm() and "Cancel form" or ("Will cast: " .. ns.predictForm())
     GameTooltip:AddLine(action, 0.83, 0.78, 0.63)
     GameTooltip:AddLine(" ")
     if locked then
