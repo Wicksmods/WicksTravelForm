@@ -7,8 +7,18 @@ ns.version = "0.2.2"
 
 local DEFAULTS = {
     point = "CENTER", relativePoint = "CENTER", x = 0, y = -120,
-    locked = true,
-    size = 48,
+    locked       = true,
+    size         = 48,
+    barEnabled   = true,
+    barSegH      = 5,
+    barGap       = 2,
+    barMargin    = 2,
+    barFloat     = false,
+    barFloatW    = 120,
+    barFloatSegH = 5,
+    barFloatGap  = 2,
+    barFloatX    = 0,
+    barFloatY    = 100,
 }
 
 ns.MIN_SIZE, ns.MAX_SIZE = 32, 96
@@ -118,13 +128,24 @@ local MANAGED_SPELL_IDS = {
     [768]   = true,  -- Cat Form
 }
 
--- Returns true when the player is already in one of the forms this addon manages.
--- In that case the button should /cancelform rather than cast (avoids powershifting).
-function ns.isInManagedForm()
+local FORM_SPELL_TO_NAME = {
+    [1066]  = ns.FORMS.AQUATIC,
+    [783]   = ns.FORMS.TRAVEL,
+    [33943] = ns.FORMS.FLIGHT,
+    [40120] = ns.FORMS.SWIFT,
+    [768]   = ns.FORMS.CAT,
+}
+
+-- Returns the spell name of the current managed form, or nil if not in one.
+function ns.currentManagedForm()
     local formIndex = GetShapeshiftForm()
-    if formIndex == 0 then return false end
+    if formIndex == 0 then return nil end
     local _, _, _, spellId = GetShapeshiftFormInfo(formIndex)
-    return MANAGED_SPELL_IDS[spellId] == true
+    return FORM_SPELL_TO_NAME[spellId]
+end
+
+function ns.isInManagedForm()
+    return ns.currentManagedForm() ~= nil
 end
 
 function ns.isFlying()
@@ -141,11 +162,11 @@ end
 -- on zone + spellbook (rare events), so we don't need any polling.
 -- =====================================================================
 function ns.buildMacro()
-    -- When already in one of our forms, emit /cancelform only.
-    -- Combining /cancelform + /cast on the same click powershifts immediately.
-    -- UPDATE_SHAPESHIFT_FORM triggers a Refresh() so the macro swaps back
-    -- to the cast variant the moment the player leaves the form.
-    if ns.isInManagedForm() then
+    -- Only /cancelform when the predicted cast would be the same form we're already
+    -- in (powershift prevention). Cross-form transitions (e.g. Cat -> Flight) work
+    -- with a direct /cast — TBC transitions the form in a single GCD.
+    local current = ns.currentManagedForm()
+    if current and current == ns.predictForm() then
         return "/cancelform"
     end
     local clauses = { "[swimming] " .. ns.FORMS.AQUATIC }
@@ -217,6 +238,8 @@ local function initIfNeeded()
         "UPDATE_SHAPESHIFT_FORM",
         "SPELLS_CHANGED",
         "UPDATE_BINDINGS",
+        "UNIT_POWER_UPDATE",
+        "UNIT_MAXPOWER",
     }) do frame:RegisterEvent(ev) end
 
     cachedFlightForm = scanFlightForm()
@@ -237,8 +260,14 @@ ns:On("ZONE_CHANGED_INDOORS",  refresh)
 ns:On("ZONE_CHANGED",          refresh)
 ns:On("PLAYER_REGEN_DISABLED", refresh)
 ns:On("PLAYER_REGEN_ENABLED",  refresh)
-ns:On("UPDATE_SHAPESHIFT_FORM", refresh)
+ns:On("UPDATE_SHAPESHIFT_FORM", function()
+    refresh()
+    if ns.ApplyBarLayout      then ns.ApplyBarLayout()      end
+    if ns.ApplyFloatBarLayout then ns.ApplyFloatBarLayout() end
+end)
 ns:On("UPDATE_BINDINGS",       function() if ns.UI and ns.UI.UpdateBindLabel then ns.UI:UpdateBindLabel() end end)
+ns:On("UNIT_POWER_UPDATE",     function(unit) if unit == "player" and ns.UpdateResourceBar then ns.UpdateResourceBar() end end)
+ns:On("UNIT_MAXPOWER",         function(unit) if unit == "player" and ns.UpdateResourceBar then ns.UpdateResourceBar() end end)
 
 -- =====================================================================
 -- Slash command
@@ -266,6 +295,7 @@ SlashCmdList["WICKSTRAVELFORM"] = function(msg)
             if ns.UI.ApplyPosition then ns.UI:ApplyPosition() end
             if ns.UI.ApplySize then ns.UI:ApplySize() end
         end
+        if ns.ApplyBarLayout then ns.ApplyBarLayout() end
         return
     elseif msg:match("^size") then
         local arg = msg:match("^size%s+(%S+)")
@@ -283,6 +313,7 @@ SlashCmdList["WICKSTRAVELFORM"] = function(msg)
         if n > ns.MAX_SIZE then n = ns.MAX_SIZE end
         WicksTravelFormDB.size = n
         if ns.UI and ns.UI.ApplySize then ns.UI:ApplySize() end
+        if ns.ApplyBarLayout then ns.ApplyBarLayout() end
         return
     elseif msg == "debug" then
         local zone = GetRealZoneText() or "?"
@@ -311,6 +342,35 @@ SlashCmdList["WICKSTRAVELFORM"] = function(msg)
         end
         local k1, k2 = GetBindingKey("CLICK WicksTravelFormButton:LeftButton")
         print(("  bind keys: %s | %s"):format(tostring(k1), tostring(k2)))
+        local bh = _G["WicksTravelFormBarHost"]
+        if bh then
+            local bp, _, brp, bx, by = bh:GetPoint(1)
+            print(("  barHost shown: %s   size: %sx%s   pos: %s/%s @ %s,%s"):format(
+                tostring(bh:IsShown()), tostring(bh:GetWidth()), tostring(bh:GetHeight()),
+                tostring(bp), tostring(brp), tostring(bx), tostring(by)))
+            print(("  db.barSegH: %s  db.barGap: %s  db.barMargin: %s"):format(
+                tostring(WicksTravelFormDB and WicksTravelFormDB.barSegH),
+                tostring(WicksTravelFormDB and WicksTravelFormDB.barGap),
+                tostring(WicksTravelFormDB and WicksTravelFormDB.barMargin)))
+            local fi = GetShapeshiftForm()
+            local fname = fi > 0 and (GetShapeshiftFormInfo(fi)) or "none"
+            print(("  mana: %s/%s  power type: %s  form: %s (#%s)"):format(
+                tostring(UnitPower("player",0)), tostring(UnitPowerMax("player",0)),
+                tostring(UnitPowerType("player")), tostring(fname), tostring(fi)))
+            -- force a relayout and report what the fills look like after
+            if ns.ApplyBarLayout then ns.ApplyBarLayout() end
+            local wi = WICKSTRAVELFORM
+            if wi and wi.priTrack then
+                print(("  priTrack numPoints: %s  priTrack h: %s"):format(
+                    tostring(wi.priTrack:GetNumPoints()), tostring(wi.priTrack:GetHeight())))
+                print(("  priFill  numPoints: %s  priFill  w: %s"):format(
+                    tostring(wi.priFill:GetNumPoints()),  tostring(wi.priFill:GetWidth())))
+            else
+                print("  fill textures not exposed on ns (expected)")
+            end
+        else
+            print("  barHost: MISSING from _G")
+        end
         return
     elseif msg == "show" then
         -- Force-build and show the button (in case PLAYER_LOGIN didn't fire as expected)
@@ -323,8 +383,84 @@ SlashCmdList["WICKSTRAVELFORM"] = function(msg)
             print("|cff8a5cf6Wick's Travel Form|r: button still not built — check chat for Lua errors.")
         end
         return
+    elseif msg:match("^bar") then
+        local sub = msg:match("^bar%s+(.+)") or ""
+        local key, val = sub:match("^(%S+)%s+(%S+)")
+        local n = tonumber(val)
+        if key == "toggle" or key == "t" then
+            WicksTravelFormDB.barEnabled = not WicksTravelFormDB.barEnabled
+            if ns.ApplyBarLayout then ns.ApplyBarLayout() end
+            print("|cff8a5cf6Wick's Travel Form|r: attached bar " .. (WicksTravelFormDB.barEnabled and "enabled" or "disabled"))
+            return
+        elseif key == "float" or key == "f" then
+            WicksTravelFormDB.barFloat = not WicksTravelFormDB.barFloat
+            if ns.ApplyFloatBarLayout then ns.ApplyFloatBarLayout() end
+            print("|cff8a5cf6Wick's Travel Form|r: floating bar " .. (WicksTravelFormDB.barFloat and "enabled" or "disabled"))
+            return
+        elseif key == "width" or key == "w" then
+            local fw = tonumber(val)
+            if not fw or fw < 40 or fw > 600 then
+                print("|cff8a5cf6Wick's Travel Form|r: float width must be 40-600. Current: " .. (WicksTravelFormDB.barFloatW or 120))
+                return
+            end
+            WicksTravelFormDB.barFloatW = fw
+            if ns.ApplyFloatBarLayout then ns.ApplyFloatBarLayout() end
+            return
+        elseif key == "height" or key == "h" then
+            if not n or n < 2 or n > 20 then
+                print("|cff8a5cf6Wick's Travel Form|r: bar height must be 2-20. Current: " .. (WicksTravelFormDB.barSegH or 5))
+                return
+            end
+            WicksTravelFormDB.barSegH = n
+            if ns.ApplyBarLayout then ns.ApplyBarLayout() end
+            return
+        elseif key == "gap" or key == "g" then
+            if not n or n < 0 or n > 10 then
+                print("|cff8a5cf6Wick's Travel Form|r: bar gap must be 0-10. Current: " .. (WicksTravelFormDB.barGap or 2))
+                return
+            end
+            WicksTravelFormDB.barGap = n
+            if ns.ApplyBarLayout then ns.ApplyBarLayout() end
+            return
+        elseif key == "margin" or key == "m" then
+            if not n or n < 0 or n > 20 then
+                print("|cff8a5cf6Wick's Travel Form|r: bar margin must be 0-20. Current: " .. (WicksTravelFormDB.barMargin or 2))
+                return
+            end
+            WicksTravelFormDB.barMargin = n
+            if ns.ApplyBarLayout then ns.ApplyBarLayout() end
+            return
+        elseif key == "fheight" or key == "fh" then
+            if not n or n < 2 or n > 20 then
+                print("|cff8a5cf6Wick's Travel Form|r: float height must be 2-20. Current: " .. (WicksTravelFormDB.barFloatSegH or 5))
+                return
+            end
+            WicksTravelFormDB.barFloatSegH = n
+            if ns.ApplyFloatBarLayout then ns.ApplyFloatBarLayout() end
+            return
+        elseif key == "fgap" or key == "fg" then
+            if not n or n < 0 or n > 10 then
+                print("|cff8a5cf6Wick's Travel Form|r: float gap must be 0-10. Current: " .. (WicksTravelFormDB.barFloatGap or 2))
+                return
+            end
+            WicksTravelFormDB.barFloatGap = n
+            if ns.ApplyFloatBarLayout then ns.ApplyFloatBarLayout() end
+            return
+        else
+            print("|cff8a5cf6Wick's Travel Form|r bar options:")
+            print(("  bar toggle          — attached bar on/off (currently: %s)"):format(WicksTravelFormDB.barEnabled ~= false and "on" or "off"))
+            print(("  bar height <2-20>   — attached segment height (current: %d)"):format(WicksTravelFormDB.barSegH or 5))
+            print(("  bar gap <0-10>      — attached gap between segments (current: %d)"):format(WicksTravelFormDB.barGap or 2))
+            print(("  bar margin <0-20>   — attached space below button (current: %d)"):format(WicksTravelFormDB.barMargin or 2))
+            print(("  bar float           — floating bar on/off (currently: %s)"):format(WicksTravelFormDB.barFloat and "on" or "off"))
+            print(("  bar width <40-600>  — floating bar width (current: %d)"):format(WicksTravelFormDB.barFloatW or 120))
+            print(("  bar fheight <2-20>  — floating segment height (current: %d)"):format(WicksTravelFormDB.barFloatSegH or 5))
+            print(("  bar fgap <0-10>     — floating gap between segments (current: %d)"):format(WicksTravelFormDB.barFloatGap or 2))
+            return
+        end
+        return
     end
-    print("|cff8a5cf6Wick's Travel Form|r commands: unlock | lock | reset | size <N> | debug | show")
+    print("|cff8a5cf6Wick's Travel Form|r commands: unlock | lock | reset | size <N> | bar | debug | show")
 end
 
 -- Friendly binding header / label

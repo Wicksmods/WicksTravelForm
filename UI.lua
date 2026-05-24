@@ -120,8 +120,11 @@ end)
 btn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine("Wick's Travel Form", 0.31, 0.78, 0.47)
-    local action = ns.isInManagedForm() and "Cancel form" or ("Will cast: " .. ns.predictForm())
-    GameTooltip:AddLine(action, 0.83, 0.78, 0.63)
+    local action
+    if ns.isInManagedForm then
+        action = ns.isInManagedForm() and "Cancel form" or ("Will cast: " .. ns.predictForm())
+    end
+    GameTooltip:AddLine(action or "Initializing...", 0.83, 0.78, 0.63)
     GameTooltip:AddLine(" ")
     if locked then
         GameTooltip:AddLine("Right-click to unlock for drag and resize.", 0.42, 0.35, 0.54)
@@ -144,6 +147,7 @@ btn:SetScript("OnMouseWheel", function(self, delta)
     if s == cur then return end
     if WicksTravelFormDB then WicksTravelFormDB.size = s end
     UI:ApplySize()
+    ApplyBarLayout()
 end)
 
 -- HookScript so Blizzard's secure OnClick still runs and fires the
@@ -158,6 +162,211 @@ end)
 -- Core.lua's class check. This way the button appears even if Activate
 -- never runs cleanly — failure mode is "button visible, macro stale"
 -- rather than "button missing entirely".
+
+-- =====================================================================
+-- Resource bar
+-- Two fixed-height segments stacked below the button host.
+-- Primary slot (top): rage in Bear, energy in Cat, mana otherwise.
+-- Mana slot (bottom): always mana, hidden when primary IS mana.
+-- Both bars dim when the form makes them passive.
+-- =====================================================================
+local BAR_H_DEFAULT      = 5
+local BAR_GAP_DEFAULT    = 2
+local BAR_MARGIN_DEFAULT = 2
+
+local function barH()       return (WicksTravelFormDB and WicksTravelFormDB.barSegH)      or BAR_H_DEFAULT      end
+local function barGap()     return (WicksTravelFormDB and WicksTravelFormDB.barGap)       or BAR_GAP_DEFAULT    end
+local function barMargin()  return (WicksTravelFormDB and WicksTravelFormDB.barMargin)    or BAR_MARGIN_DEFAULT end
+local function fbarH()      return (WicksTravelFormDB and WicksTravelFormDB.barFloatSegH) or BAR_H_DEFAULT      end
+local function fbarGap()    return (WicksTravelFormDB and WicksTravelFormDB.barFloatGap)  or BAR_GAP_DEFAULT    end
+
+local C_RAGE   = { 1.00, 0.49, 0.10, 1 }
+local C_ENERGY = { 1.00, 0.82, 0.10, 1 }
+local C_MANA   = { 0.31, 0.52, 0.90, 1 }
+local C_DIM_BG = { 0.10, 0.10, 0.12, 0.6 }
+
+-- Power type constants (UnitPowerType returns these)
+local POWER_MANA   = 0
+local POWER_RAGE   = 1
+local POWER_ENERGY = 3
+
+-- =====================================================================
+-- Shared draw logic — operates on whichever bar frame is passed in.
+-- Each bar frame has .priTrack, .priFill, .manaTrack, .manaFill children.
+-- =====================================================================
+local function MakeBarChildren(f)
+    local pt = f:CreateTexture(nil, "BACKGROUND"); pt:SetColorTexture(unpack(C_DIM_BG))
+    local pf = f:CreateTexture(nil, "ARTWORK");    pf:SetWidth(1)
+    local mt = f:CreateTexture(nil, "BACKGROUND"); mt:SetColorTexture(unpack(C_DIM_BG))
+    local mf = f:CreateTexture(nil, "ARTWORK");    mf:SetWidth(1)
+    f.priTrack  = pt
+    f.priFill   = pf
+    f.manaTrack = mt
+    f.manaFill  = mf
+end
+
+-- pad: inset tracks inside the frame on all sides (used by float bar for bracket clearance)
+local function LayoutBarChildren(f, w, h, g, pad)
+    pad = pad or 0
+
+    f.priTrack:ClearAllPoints()
+    f.priTrack:SetPoint("TOPLEFT",  f, "TOPLEFT",   pad, -pad)
+    f.priTrack:SetPoint("TOPRIGHT", f, "TOPRIGHT", -pad, -pad)
+    f.priTrack:SetHeight(h)
+
+    f.priFill:ClearAllPoints()
+    f.priFill:SetPoint("TOPLEFT",    f.priTrack, "TOPLEFT",    0, 0)
+    f.priFill:SetPoint("BOTTOMLEFT", f.priTrack, "BOTTOMLEFT", 0, 0)
+
+    f.manaTrack:ClearAllPoints()
+    f.manaTrack:SetPoint("TOPLEFT",  f, "TOPLEFT",   pad, -(pad + h + g))
+    f.manaTrack:SetPoint("TOPRIGHT", f, "TOPRIGHT", -pad, -(pad + h + g))
+    f.manaTrack:SetHeight(h)
+
+    f.manaFill:ClearAllPoints()
+    f.manaFill:SetPoint("TOPLEFT",    f.manaTrack, "TOPLEFT",    0, 0)
+    f.manaFill:SetPoint("BOTTOMLEFT", f.manaTrack, "BOTTOMLEFT", 0, 0)
+end
+
+local function DrawBar(f)
+    local totalW = f._innerW or f:GetWidth()
+    if not totalW or totalW <= 0 then return end
+
+    local powerType = UnitPowerType("player")
+    local mana    = UnitPower("player", POWER_MANA)
+    local manaMax = UnitPowerMax("player", POWER_MANA)
+    local manaPct = (manaMax and manaMax > 0) and (mana / manaMax) or 0
+
+    if powerType == POWER_RAGE then
+        local rage    = UnitPower("player", POWER_RAGE)
+        local rageMax = UnitPowerMax("player", POWER_RAGE)
+        local ragePct = (rageMax and rageMax > 0) and (rage / rageMax) or 0
+        f.priFill:SetColorTexture(C_RAGE[1], C_RAGE[2], C_RAGE[3], 1)
+        f.priFill:SetWidth(math.max(1, totalW * ragePct))
+        f.manaFill:SetColorTexture(C_MANA[1], C_MANA[2], C_MANA[3], 0.45)
+        f.manaFill:SetWidth(math.max(1, totalW * manaPct))
+        f.manaTrack:Show(); f.manaFill:Show()
+
+    elseif powerType == POWER_ENERGY then
+        local energy    = UnitPower("player", POWER_ENERGY)
+        local energyMax = UnitPowerMax("player", POWER_ENERGY)
+        local energyPct = (energyMax and energyMax > 0) and (energy / energyMax) or 0
+        f.priFill:SetColorTexture(C_ENERGY[1], C_ENERGY[2], C_ENERGY[3], 1)
+        f.priFill:SetWidth(math.max(1, totalW * energyPct))
+        f.manaFill:SetColorTexture(C_MANA[1], C_MANA[2], C_MANA[3], 0.45)
+        f.manaFill:SetWidth(math.max(1, totalW * manaPct))
+        f.manaTrack:Show(); f.manaFill:Show()
+
+    else
+        local formIndex = GetShapeshiftForm()
+        local isMoonkin = false
+        if formIndex > 0 then
+            local formName = GetShapeshiftFormInfo(formIndex)
+            isMoonkin = (formName == "Moonkin Form")
+        end
+        local alpha = isMoonkin and 1 or 0.55
+        f.priFill:SetColorTexture(C_MANA[1], C_MANA[2], C_MANA[3], alpha)
+        f.priFill:SetWidth(math.max(1, totalW * manaPct))
+        f.manaTrack:Hide(); f.manaFill:Hide()
+    end
+end
+
+-- =====================================================================
+-- Attached bar — anchored below the button host, width = button size.
+-- =====================================================================
+local barHost = CreateFrame("Frame", "WicksTravelFormBarHost", UIParent)
+barHost:SetFrameStrata("MEDIUM")
+barHost:SetClampedToScreen(true)
+barHost:Hide()
+MakeBarChildren(barHost)
+
+local function ApplyBarLayout()
+    if WicksTravelFormDB and WicksTravelFormDB.barEnabled == false then
+        barHost:Hide()
+        return
+    end
+    local s = (WicksTravelFormDB and WicksTravelFormDB.size) or 48
+    local h = barH()
+    local g = barGap()
+    local m = barMargin()
+    barHost:SetSize(s, h * 2 + g)
+    barHost:ClearAllPoints()
+    barHost:SetPoint("TOP", host, "BOTTOM", 0, -m)
+    LayoutBarChildren(barHost, s, h, g)
+    barHost:Show()
+    DrawBar(barHost)
+end
+ns.ApplyBarLayout = ApplyBarLayout
+
+-- =====================================================================
+-- Floating bar — independent draggable frame.
+-- =====================================================================
+local FLOAT_W_DEFAULT = 120
+
+local floatBar = CreateFrame("Frame", "WicksTravelFormFloatBar", UIParent)
+floatBar:SetFrameStrata("MEDIUM")
+floatBar:SetClampedToScreen(true)
+floatBar:SetMovable(true)
+floatBar:Hide()
+MakeBarChildren(floatBar)
+
+-- Wick border + corner accents on the float bar
+addBorder(floatBar)
+addCornerAccents(floatBar)
+
+floatBar:EnableMouse(true)
+floatBar:RegisterForDrag("LeftButton")
+floatBar:SetScript("OnDragStart", function(self)
+    if not locked then self:StartMoving() end
+end)
+floatBar:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    if WicksTravelFormDB then
+        local _, _, _, x, y = self:GetPoint(1)
+        WicksTravelFormDB.barFloatX = x
+        WicksTravelFormDB.barFloatY = y
+    end
+end)
+
+local function ApplyFloatBarLayout()
+    if not (WicksTravelFormDB and WicksTravelFormDB.barFloat) then
+        floatBar:Hide()
+        return
+    end
+    local w = (WicksTravelFormDB and WicksTravelFormDB.barFloatW) or FLOAT_W_DEFAULT
+    local h = fbarH()
+    local g = fbarGap()
+    local pad = ARM  -- bracket arm thickness = inset amount
+    -- frame is larger than the fill area by 2*pad on each axis
+    floatBar:SetSize(w + pad * 2, h * 2 + g + pad * 2)
+    floatBar:ClearAllPoints()
+    local x = (WicksTravelFormDB and WicksTravelFormDB.barFloatX) or 0
+    local y = (WicksTravelFormDB and WicksTravelFormDB.barFloatY) or 100
+    floatBar:SetPoint("CENTER", UIParent, "CENTER", x, y)
+    LayoutBarChildren(floatBar, w, h, g, pad)
+    -- store inner width so DrawBar scales fills correctly
+    floatBar._innerW = w
+    floatBar:Show()
+    DrawBar(floatBar)
+end
+ns.ApplyFloatBarLayout = ApplyFloatBarLayout
+
+-- Throttled OnUpdate drives both bars.
+local elapsed = 0
+local ticker = CreateFrame("Frame")
+ticker:SetScript("OnUpdate", function(_, dt)
+    elapsed = elapsed + dt
+    if elapsed < 0.05 then return end
+    elapsed = 0
+    if barHost:IsShown()  then DrawBar(barHost)  end
+    if floatBar:IsShown() then DrawBar(floatBar) end
+end)
+
+local function UpdateResourceBar()
+    if barHost:IsShown()  then DrawBar(barHost)  end
+    if floatBar:IsShown() then DrawBar(floatBar) end
+end
+ns.UpdateResourceBar = UpdateResourceBar
 
 -- =====================================================================
 -- Methods
@@ -211,14 +420,18 @@ function UI:Activate()
     if locked then moveTint:Hide() else moveTint:Show() end
     self:ApplyPosition()
     self:ApplySize()
+    ApplyBarLayout()
+    ApplyFloatBarLayout()
     self:Refresh()
     host:Show()
     btn:Show()
 end
 
--- Called when we know the player isn't a druid — hide the button.
+-- Called when we know the player isn't a druid — hide everything.
 function UI:Deactivate()
     host:Hide()
+    barHost:Hide()
+    floatBar:Hide()
 end
 
 -- Build is kept as an alias for /wstf show — same effect as Activate
