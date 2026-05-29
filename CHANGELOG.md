@@ -1,5 +1,11 @@
 # Wick's Travel Form — Changelog
 
+## 0.2.3 — 2026-05-24
+
+### Fixed
+
+- Cross-form transitions (e.g. Cat to Flight) now cast directly without a `/cancelform` pre-step, completing in one GCD. `/cancelform` is only emitted when the predicted cast would re-enter the same form already active (powershift guard).
+
 ## 0.2.2 — 2026-05-10
 
 ### Fixed
