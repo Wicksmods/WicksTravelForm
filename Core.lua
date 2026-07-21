@@ -3,12 +3,14 @@
 
 local ADDON, ns = ...
 _G.WICKSTRAVELFORM = ns
-ns.version = "0.2.3"
+ns.version = "0.2.4"
 
 local DEFAULTS = {
     point = "CENTER", relativePoint = "CENTER", x = 0, y = -120,
     locked       = true,
     size         = 48,
+    showBind     = true,
+    showChrome   = true,
     barEnabled   = true,
     barSegH      = 5,
     barGap       = 2,
@@ -383,6 +385,16 @@ SlashCmdList["WICKSTRAVELFORM"] = function(msg)
             print("|cff8a5cf6Wick's Travel Form|r: button still not built — check chat for Lua errors.")
         end
         return
+    elseif msg == "bind" or msg == "keybind" then
+        WicksTravelFormDB.showBind = not (WicksTravelFormDB.showBind ~= false)
+        if ns.UI and ns.UI.UpdateBindLabel then ns.UI:UpdateBindLabel() end
+        print("|cff8a5cf6Wick's Travel Form|r: keybind label " .. (WicksTravelFormDB.showBind and "shown" or "hidden"))
+        return
+    elseif msg == "chrome" or msg == "border" then
+        WicksTravelFormDB.showChrome = not (WicksTravelFormDB.showChrome ~= false)
+        if ns.UI and ns.UI.ApplyChrome then ns.UI:ApplyChrome() end
+        print("|cff8a5cf6Wick's Travel Form|r: button chrome " .. (WicksTravelFormDB.showChrome and "shown" or "hidden"))
+        return
     elseif msg:match("^bar") then
         local sub = msg:match("^bar%s+(.+)") or ""
         local key, val = sub:match("^(%S+)%s+(%S+)")
@@ -460,7 +472,7 @@ SlashCmdList["WICKSTRAVELFORM"] = function(msg)
         end
         return
     end
-    print("|cff8a5cf6Wick's Travel Form|r commands: unlock | lock | reset | size <N> | bar | debug | show")
+    print("|cff8a5cf6Wick's Travel Form|r commands: unlock | lock | reset | size <N> | bind | chrome | bar | debug | show")
 end
 
 -- Friendly binding header / label

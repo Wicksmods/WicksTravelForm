@@ -1,5 +1,12 @@
 # Wick's Travel Form — Changelog
 
+## 0.2.4 — 2026-07-21
+
+### Added
+
+- `/wstf bind` toggles the keybind label in the top-right of the button
+- `/wstf chrome` toggles the button chrome (background, border, corner brackets). With chrome off, the icon fills the button and shows its native Blizzard border, matching the look of a stock action button icon
+
 ## 0.2.3 — 2026-05-24
 
 ### Fixed

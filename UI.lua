@@ -29,17 +29,21 @@ local function newTex(parent, layer, c)
 end
 
 local function addBorder(f)
-    local t = newTex(f, "BORDER", C_BORDER); t:SetPoint("TOPLEFT");    t:SetPoint("TOPRIGHT");    t:SetHeight(1)
-    local b = newTex(f, "BORDER", C_BORDER); b:SetPoint("BOTTOMLEFT"); b:SetPoint("BOTTOMRIGHT"); b:SetHeight(1)
-    local l = newTex(f, "BORDER", C_BORDER); l:SetPoint("TOPLEFT");    l:SetPoint("BOTTOMLEFT");  l:SetWidth(1)
-    local r = newTex(f, "BORDER", C_BORDER); r:SetPoint("TOPRIGHT");   r:SetPoint("BOTTOMRIGHT"); r:SetWidth(1)
+    local ts = {}
+    local t = newTex(f, "BORDER", C_BORDER); t:SetPoint("TOPLEFT");    t:SetPoint("TOPRIGHT");    t:SetHeight(1); ts[#ts+1] = t
+    local b = newTex(f, "BORDER", C_BORDER); b:SetPoint("BOTTOMLEFT"); b:SetPoint("BOTTOMRIGHT"); b:SetHeight(1); ts[#ts+1] = b
+    local l = newTex(f, "BORDER", C_BORDER); l:SetPoint("TOPLEFT");    l:SetPoint("BOTTOMLEFT");  l:SetWidth(1);  ts[#ts+1] = l
+    local r = newTex(f, "BORDER", C_BORDER); r:SetPoint("TOPRIGHT");   r:SetPoint("BOTTOMRIGHT"); r:SetWidth(1);  ts[#ts+1] = r
+    return ts
 end
 
 local function addCornerAccents(f)
+    local ts = {}
     for _, anchor in ipairs({ "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }) do
-        local h = newTex(f, "OVERLAY", C_GREEN); h:SetPoint(anchor); h:SetSize(BRACKET, ARM)
-        local v = newTex(f, "OVERLAY", C_GREEN); v:SetPoint(anchor); v:SetSize(ARM, BRACKET)
+        local h = newTex(f, "OVERLAY", C_GREEN); h:SetPoint(anchor); h:SetSize(BRACKET, ARM); ts[#ts+1] = h
+        local v = newTex(f, "OVERLAY", C_GREEN); v:SetPoint(anchor); v:SetSize(ARM, BRACKET); ts[#ts+1] = v
     end
+    return ts
 end
 
 local function shortBind(key)
@@ -84,8 +88,11 @@ btn:SetAttribute("type1", "macro")
 btn:RegisterForClicks("AnyUp", "AnyDown")
 
 local bg = newTex(btn, "BACKGROUND", C_BG); bg:SetAllPoints(btn)
-addBorder(btn)
-addCornerAccents(btn)
+local borderTex  = addBorder(btn)
+local cornerTex  = addCornerAccents(btn)
+btn.chromeTex = { bg }
+for _, t in ipairs(borderTex) do btn.chromeTex[#btn.chromeTex+1] = t end
+for _, t in ipairs(cornerTex) do btn.chromeTex[#btn.chromeTex+1] = t end
 
 local icon = btn:CreateTexture(nil, "ARTWORK")
 icon:SetPoint("TOPLEFT", 4, -4)
@@ -389,6 +396,27 @@ end
 
 function UI:UpdateBindLabel()
     btn.bindLabel:SetText(shortBind(GetBindingKey(TF_BINDING)))
+    if WicksTravelFormDB and WicksTravelFormDB.showBind == false then
+        btn.bindLabel:Hide()
+    else
+        btn.bindLabel:Show()
+    end
+end
+
+function UI:ApplyChrome()
+    local show = not (WicksTravelFormDB and WicksTravelFormDB.showChrome == false)
+    for _, t in ipairs(btn.chromeTex) do
+        if show then t:Show() else t:Hide() end
+    end
+    btn.icon:ClearAllPoints()
+    if show then
+        btn.icon:SetPoint("TOPLEFT", 4, -4)
+        btn.icon:SetPoint("BOTTOMRIGHT", -4, 4)
+        btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    else
+        btn.icon:SetAllPoints(btn)
+        btn.icon:SetTexCoord(0, 1, 0, 1)
+    end
 end
 
 function UI:Refresh()
@@ -420,6 +448,7 @@ function UI:Activate()
     if locked then moveTint:Hide() else moveTint:Show() end
     self:ApplyPosition()
     self:ApplySize()
+    self:ApplyChrome()
     ApplyBarLayout()
     ApplyFloatBarLayout()
     self:Refresh()
