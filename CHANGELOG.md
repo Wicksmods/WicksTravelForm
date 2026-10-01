@@ -1,5 +1,12 @@
 # Wick's Travel Form — Changelog
 
+## 0.2.5 - 2026-10-01
+
+### Fixed
+
+- Loads on the 2.5.6 client without being marked out of date. The addon
+  now lists interface 20506 alongside 20505.
+
 ## 0.2.4 — 2026-07-21
 
 ### Added
