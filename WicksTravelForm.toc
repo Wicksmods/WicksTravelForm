@@ -5,6 +5,5 @@
 ## Version: 0.2.5
 ## SavedVariables: WicksTravelFormDB
 
-Bindings.xml
 Core.lua
 UI.lua

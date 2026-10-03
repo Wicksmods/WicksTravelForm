@@ -1,5 +1,12 @@
 # Wick's Travel Form — Changelog
 
+## 0.2.6
+
+### Fixed
+
+- No errors at login about Bindings.xml. The file was listed in the TOC as
+  well, so the game read it twice; the key binding is unchanged.
+
 ## 0.2.5 - 2026-10-01
 
 ### Fixed
