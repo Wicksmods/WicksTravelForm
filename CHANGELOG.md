@@ -1,6 +1,6 @@
 # Wick's Travel Form — Changelog
 
-## 0.2.6
+## 0.2.6 - 2026-10-03
 
 ### Fixed
 
